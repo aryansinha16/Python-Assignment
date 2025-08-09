@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_session
@@ -8,15 +8,18 @@ from schema import EmployeeDetails, EmployeeDetailsCreate, EmployeeDetailsRead
 router = APIRouter()
 
 #route to create new employee
-@router.post("/createemployee", response_model=EmployeeDetailsRead)
-async def create_employlee(employee: EmployeeDetailsCreate, session: AsyncSession = Depends(get_session)):
-    #create new employeedetails as an object
-    new_emp = EmployeeDetails(**employee.model_dump())
-    #add new employee to the session and commit to database
-    session.add(new_emp)
+@router.post("/createemployee", response_model= list[EmployeeDetailsRead])
+async def create_employlee(employees: list[EmployeeDetailsCreate] = Body(...), session: AsyncSession = Depends(get_session)):
+    new_employee = []
+    #a loop methord to add multiple employee details
+    for employee_data in employees:
+        employee = EmployeeDetails(**employee_data.model_dump())
+        session.add(employee)
+        new_employee.append(employee)
     await session.commit()
-    await session.refresh(new_emp) #refresh to get the data
-    return new_emp #return the new employee
+    for employee in new_employee:
+        await session.refresh(employee)
+    return new_employee
 
 #route to edit existing employee details
 @router.patch("/editemployee/{employeeid}", response_model=EmployeeDetailsRead)

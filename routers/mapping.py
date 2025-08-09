@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_session
@@ -9,14 +9,17 @@ router = APIRouter()
 
 #route to assign an asset to an employee (mapping)
 @router.post("/assignassetmapping", response_model=EmployeeAssetMappingRead)
-async def assign_asset_map(mapping: EmployeeAssetMappingCreate, session: AsyncSession = Depends(get_session)):
-    #create a new map record from input data
-    new_map = EmployeeAssetMapping(**mapping.model_dump())
-    #add new map commit and refresh to return created map
-    session.add(new_map)
+async def assign_multiple_assets(mappings: list[EmployeeAssetMappingCreate] = Body(...), session: AsyncSession = Depends(get_session)):
+    new_mappings = []
+    #a loop methord to map multiple employees to assets
+    for mapping in mappings:
+        new_mapping = EmployeeAssetMapping(**mapping.model_dump())
+        session.add(new_mapping)
+        new_mappings.append(new_mapping)
     await session.commit()
-    await session.refresh(new_map)
-    return new_map
+    for new_mapping in new_mappings:
+        await session.refresh(new_mapping)
+    return new_mappings
 
 #route to get assets assigned to specific employee
 @router.get("/getallassets/{employeeid}", response_model=list[AssetDetailsRead])
